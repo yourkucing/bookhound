@@ -97,13 +97,18 @@ export async function enrichBooksWithBRN(
         const entryFormat = entry.format?.name?.toLowerCase() ?? '';
         const entryTitle = clean(entry.title || '');
         const entryAuthor = clean(entry.author ?? '');
+        const entryLanguage = Array.isArray(entry.language)
+          ? entry.language.map((lang: string) => lang.toLowerCase())
+          : [];
+
         const targetTitle = clean(book.title);
         const targetAuthor = clean(book.author);
 
         return (
           entryFormat === 'book' &&
           entryTitle.includes(targetTitle) &&
-          entryAuthor.includes(targetAuthor)
+          entryAuthor.includes(targetAuthor) &&
+          entryLanguage.includes('english')
         );
       });
 
