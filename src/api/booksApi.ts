@@ -7,9 +7,9 @@ export interface Book {
   brn?: string;
 }
 
-export async function fetchAvailableBooks(brn: string): Promise<{ library: string; avail: boolean }[]> {
+export async function fetchAvailableBooks(brn: string): Promise<{ library: string; avail: boolean; code: string; category: string; }[]> {
 
-  const availableBooks: { library: string; avail: boolean }[] = [];
+  const availableBooks: { library: string; avail: boolean; code: string; category: string; }[] = [];
   const brnInt = parseInt(brn, 10);
 
   try {
@@ -30,7 +30,9 @@ export async function fetchAvailableBooks(brn: string): Promise<{ library: strin
       for (const item of result.items) {
         availableBooks.push({
           library: item.location?.code ?? null,
-          avail: item.status?.code === "In"
+          avail: item.status?.code === "In",
+          code: item.formattedCallNumber ?? null,
+          category: item.usageLevel?.code ?? null
         })
       }
     }
