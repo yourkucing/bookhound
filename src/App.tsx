@@ -9,7 +9,7 @@ import './App.css'
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<{ minutes: number; seconds: number } | null>(null);
   const [processing, setProcessing] = useState(false);
   const [library, setLibrary] = useState<string>('');
   const [books, setBooks] = useState<Book[]>([]);
@@ -81,7 +81,10 @@ function App() {
             const avgTimePerBook = elapsed / current;
             const remaining = avgTimePerBook * (total - current);
 
-            setTimeLeft(remaining);
+            const minutes = Math.floor(remaining / 60);
+            const seconds = Math.floor(remaining % 60);
+
+            setTimeLeft({ minutes, seconds });
           });
 
           console.log("Books have been enriched with BRN!");
@@ -126,7 +129,7 @@ function App() {
             <div>
               <p>Processing book {progress.current} of {progress.total}</p>
               {timeLeft !== null && (
-                <p>Estimated time left: {Math.ceil(timeLeft)} seconds</p>
+                <p>Estimated time left: {timeLeft.minutes}m {timeLeft.seconds}s</p>
               )}
             </div>
           )}
