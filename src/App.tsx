@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchBranches, fetchDBBranches } from './api/libraryApi';
-import { updateBooks } from './api/booksApi';
+import { updateBooks, enrichBooksWithBRN } from './api/booksApi';
 import type { Branch } from './api/libraryApi';
 import type { Book } from './api/booksApi';
 import Papa from "papaparse";
@@ -40,14 +40,20 @@ function App() {
 
         const GRbooks: Book[] = tbr.map((row: any) => ({
           book_id: row["Book Id"],
-          title: row["Title"],
+          title: row["Title"].replace(/\s*\([^)]*\)\s*$/, '').trim(),
           author: row["Author l-f"],
           brn: null,
         }));
 
-        updateBooks(GRbooks)
-          .then(() => { console.log("Books have been updated!")})
-          .catch(err => console.log(err.message))
+      updateBooks(GRbooks)
+        .then(() => {
+          console.log("Books have been updated!");
+          return enrichBooksWithBRN(GRbooks); // enrich after upsert
+        })
+        .then(() => {
+          console.log("Books have been enriched with BRN!");
+        })
+        .catch(err => console.error(err));
       },
     });
   };
@@ -72,7 +78,7 @@ function App() {
             type="file"
             name="file"
             accept=".csv"
-            onChange={ e => updateGRBooks(e.target.files?[0])}
+            onChange={ e => updateGRBooks(e.target.files[0])}
             />
         </div>
         <select 

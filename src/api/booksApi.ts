@@ -7,18 +7,6 @@ export interface Book {
   brn?: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Function to fetch books from API
-export async function fetchBooks(): Promise<Book[]> {
-  const response = await fetch(`${API_URL}/books`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch books');
-  }
-  const data = await response.json();
-  return data;
-}
-
 export async function updateBooks(books: Book[]) {
     const { data, error } = await supabase
         .from('books')
@@ -32,29 +20,46 @@ export async function updateBooks(books: Book[]) {
     return data;
 }
 
-export async function getBRN(): Promise<Book[]> {
-  const response = await fetch(`/api/v2/Catalogue/GetBranches?LibraryTypes=RL,PL&ListType=onsite`, {
-    method: 'GET',
-    headers: {
-        "X-Api-Key": import.meta.env.VITE_X_API_KEY,
-        "X-App-Code": import.meta.env.VITE_X_API_CODE,
-        "User-Agent": "MyApp/1.0"
-    },
-  });
-  if (!response.ok) {
-    throw new Error('Failed to fetch branches');
+export async function enrichBooksWithBRN(books: Book[], limit = 500) {
+  for (let i = 0; i < books.length && i < limit; i++) {
+    const book = books[i];
+
+    const params = new URLSearchParams({
+      Title: book.title,
+      Author: book.author,
+    });
+
+    try {
+      const response = await fetch(`/api/v2/Catalogue/GetTitles?${params}`, {
+        method: 'GET',
+        headers: {
+          "X-Api-Key": import.meta.env.VITE_X_API_KEY,
+          "X-App-Code": import.meta.env.VITE_X_API_CODE,
+          "User-Agent": "MyApp/1.0",
+        },
+      });
+
+      if (response.status === 429) {
+        console.warn("429 Rate limit hit, stopping enrichment.");
+        break;
+      }
+
+      const data = await response.json();
+      const brn = data?.titles?.[0]?.brn;
+
+      if (brn) {
+        await supabase
+          .from("books")
+          .update({ brn })
+          .eq("book_id", book.book_id);
+        console.log(`Updated BRN for "${book.title}": ${brn}`);
+      } else {
+        console.log(`No BRN found for "${book.title}"`);
+      }
+    } catch (err) {
+      console.error(`Failed to enrich "${book.title}"`, err);
+    }
+
+    await new Promise((res) => setTimeout(res, 5000)); // ⏱️ throttle 1 req/sec
   }
-  const data = await response.json();
-
-  const branches: Branch[] = data.branches.map((branch: any) => ({
-    branch_code: branch.branchCode,
-    branch_name: branch.branchName,
-    closed: branch.timing.openingHours === "",
-  }));
-
-  console.log(branches)
-
-  await updateBranches(branches);
-
-  return branches;
 }
