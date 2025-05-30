@@ -7,7 +7,10 @@ import Papa from "papaparse";
 import './App.css'
 
 function App() {
-  const [available, setAvailable] = useState<boolean[] | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [library, setLibrary] = useState<string>('');
   const [books, setBooks] = useState<Book[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -28,12 +31,29 @@ function App() {
       .finally(() => setLoading(false));
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleProcessClick = () => {
+    if (selectedFile) {
+      updateGRBooks(selectedFile);
+    } else {
+      alert("Please upload a file first.");
+    }
+  };
+
   function updateGRBooks(files) {
+    setProcessing(true);
+    setProgress({ current: 0, total: 0 });
+    setTimeLeft(null);
+
     Papa.parse(files, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
-
+      complete: async (results) => {
         const tbr = results.data.filter(
           (row) => String(row['Exclusive Shelf']).trim().toLowerCase() === 'to-read'
         );
@@ -45,15 +65,32 @@ function App() {
           brn: null,
         }));
 
-      updateBooks(GRbooks)
-        .then(() => {
+        setProgress({ current: 0, total: GRbooks.length });
+
+        try {
+          await updateBooks(GRbooks)
           console.log("Books have been updated!");
-          return enrichBooksWithBRN(GRbooks); // enrich after upsert
-        })
-        .then(() => {
+
+          const estimatedTimePerBook = 12.5;
+          let startTime = Date.now();
+
+          await enrichBooksWithBRN(GRbooks, GRbooks.length, (current, total) => {
+            setProgress({ current, total });
+
+            const elapsed = (Date.now() - startTime) / 1000;
+            const avgTimePerBook = elapsed / current;
+            const remaining = avgTimePerBook * (total - current);
+
+            setTimeLeft(remaining);
+          });
+
           console.log("Books have been enriched with BRN!");
-        })
-        .catch(err => console.error(err));
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setProcessing(false);
+          setTimeLeft(null);
+        }
       },
     });
   };
@@ -78,8 +115,21 @@ function App() {
             type="file"
             name="file"
             accept=".csv"
-            onChange={ e => updateGRBooks(e.target.files[0])}
+            onChange={handleFileChange}
             />
+            <button onClick={handleProcessClick} disabled={!selectedFile}>
+              Process File
+            </button>
+        </div>
+        <div>
+          {processing && (
+            <div>
+              <p>Processing book {progress.current} of {progress.total}</p>
+              {timeLeft !== null && (
+                <p>Estimated time left: {Math.ceil(timeLeft)} seconds</p>
+              )}
+            </div>
+          )}
         </div>
         <select 
           value={library}
@@ -88,13 +138,14 @@ function App() {
               <option key={branch.branch_code} value={branch.branch_code}>{branch.branch_name}</option>
             ))}
         </select>
-        <ul>
-        {books.map((book, i) => (
-          <li key={i}>
-            {book} - {available ? (available[i] ? 'Available' : 'Not available') : 'Unknown'}
-          </li>
-        ))}
-        </ul>
+<ul>
+  {books.map((book, i) => (
+    <li key={i}>
+      <strong>{book.title}</strong> by {book.author} (BRN: {book.brn})
+    </li>
+  ))}
+</ul>
+
 
         <button onClick={checkAvailability}>Check Availability</button>
         <button onClick={updateLibrary}>Update Library Branches</button>

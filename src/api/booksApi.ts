@@ -7,6 +7,43 @@ export interface Book {
   brn?: string;
 }
 
+export async function fetchAvailableBooks(brn: string): Promise<{ library: string; avail: boolean }[]> {
+
+  const availableBooks: { library: string; avail: boolean }[] = [];
+  const brnInt = parseInt(brn, 10);
+
+  try {
+    const response = await fetch(`/api/v2/Catalogue/GetAvailabilityInfo?BRN=${brnInt}`, {
+      method: 'GET',
+      headers: {
+        "X-Api-Key": import.meta.env.VITE_X_API_KEY,
+        "X-App-Code": import.meta.env.VITE_X_API_CODE,
+        "User-Agent": "MyApp/1.0"
+      }
+    });
+
+    if (!response.ok) throw new Error(`API failed for BRN ${brnInt}`);
+
+    const result = await response.json();
+    
+    if(Array.isArray(result.items)) {
+      for (const item of result.items) {
+        availableBooks.push({
+          library: item.location?.code ?? null,
+          avail: item.status?.code === "In"
+        })
+      }
+    }
+  } catch (err) {
+    console.error(`Error checking availability for BRN ${brnInt}:`, err);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  console.log(availableBooks)
+  return availableBooks;
+}
+
 export async function updateBooks(books: Book[]) {
     const { data, error } = await supabase
         .from('books')
@@ -20,12 +57,18 @@ export async function updateBooks(books: Book[]) {
     return data;
 }
 
-export async function enrichBooksWithBRN(books: Book[], limit = 500) {
+export async function enrichBooksWithBRN(
+  books: Book[],
+  limit = 500,
+  onProgress?: (current: number, total: number) => void) {
+
+  const total = Math.min(books.length, limit);
+  
   for (let i = 0; i < books.length && i < limit; i++) {
     const book = books[i];
 
     const params = new URLSearchParams({
-      Title: book.title,
+      Title: book.title.replace(/:/g, ''),
       Author: book.author,
     });
 
@@ -45,12 +88,36 @@ export async function enrichBooksWithBRN(books: Book[], limit = 500) {
       }
 
       const data = await response.json();
-      const brn = data?.titles?.[0]?.brn;
+      const match = data.titles.find((entry) => {
+        const clean = (str: string) =>
+          str.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
 
-      if (brn) {
+        const entryFormat = entry.format?.name?.toLowerCase() ?? '';
+        const entryTitle = clean(entry.title || '');
+        const entryAuthor = clean(entry.author ?? '');
+        const targetTitle = clean(book.title);
+        const targetAuthor = clean(book.author);
+
+        return (
+          entryFormat === 'book' &&
+          entryTitle.includes(targetTitle) &&
+          entryAuthor.includes(targetAuthor)
+        );
+      });
+
+      if (match) {
+        const brn = match.brn;
+        console.log("Matched BRN:", brn);
+
+        await new Promise((res) => setTimeout(res, 5000));
+
+        console.log("Checking availability now...");
+
+        const availability = await fetchAvailableBooks(brn)
+
         await supabase
           .from("books")
-          .update({ brn })
+          .update({ brn, availability })
           .eq("book_id", book.book_id);
         console.log(`Updated BRN for "${book.title}": ${brn}`);
       } else {
@@ -60,6 +127,7 @@ export async function enrichBooksWithBRN(books: Book[], limit = 500) {
       console.error(`Failed to enrich "${book.title}"`, err);
     }
 
-    await new Promise((res) => setTimeout(res, 5000)); // ⏱️ throttle 1 req/sec
+    if (onProgress) onProgress(i+1, total);
+    await new Promise((res) => setTimeout(res, 5000));
   }
 }
