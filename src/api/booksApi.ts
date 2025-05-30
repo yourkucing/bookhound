@@ -108,6 +108,8 @@ export async function enrichBooksWithBRN(
       if (match) {
         const brn = match.brn;
         console.log("Matched BRN:", brn);
+        console.log("Matched Title:", match.title);
+        console.log("Matched Author:", match.author);
 
         await new Promise((res) => setTimeout(res, 5000));
 
