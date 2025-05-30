@@ -13,7 +13,7 @@ export async function fetchAvailableBooks(brn: string): Promise<{ library: strin
   const brnInt = parseInt(brn, 10);
 
   try {
-    const response = await fetch(`/api/v2/Catalogue/GetAvailabilityInfo?BRN=${brnInt}`, {
+    const response = await fetch(`/api/v2/Catalogue/GetAvailabilityInfo?BRN=${brnInt}&Limit=30`, {
       method: 'GET',
       headers: {
         "X-Api-Key": import.meta.env.VITE_X_API_KEY,
@@ -63,7 +63,7 @@ export async function enrichBooksWithBRN(
   onProgress?: (current: number, total: number) => void) {
 
   const total = Math.min(books.length, limit);
-  
+
   for (let i = 0; i < books.length && i < limit; i++) {
     const book = books[i];
 
