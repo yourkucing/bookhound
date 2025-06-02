@@ -102,11 +102,12 @@ export async function enrichBooksWithBRN(
           : [];
 
         const targetTitle = clean(book.title);
+        const wordsInTarget = targetTitle.split(' ');
         const targetAuthor = clean(book.author);
 
         return (
           entryFormat === 'book' &&
-          entryTitle.includes(targetTitle) &&
+          wordsInTarget.every((word) => entryTitle.includes(word)) &&
           entryAuthor.includes(targetAuthor) &&
           entryLanguage.includes('english')
         );
