@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchBranches, fetchDBBranches } from './api/libraryApi';
-import { updateBooks, enrichBooksWithBRN } from './api/booksApi';
+import { updateBooks, enrichBooksWithBRN, checkAvailability } from './api/booksApi';
 import type { Branch } from './api/libraryApi';
-import type { Book } from './api/booksApi';
 import Papa from "papaparse";
 import './App.css'
 
@@ -11,13 +10,22 @@ function App() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [timeLeft, setTimeLeft] = useState<{ minutes: number; seconds: number } | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [library, setLibrary] = useState<string>('');
-  const [books, setBooks] = useState<Book[]>([]);
+  const [library, setLibrary] = useState<string>("AMKPL");
+  const [books, setBooks] = useState<{ title: string, author: string, code: string, category: string}[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function checkAvailability() {
+  function checkAvailableBooks() {
+    if (library) {
+      checkAvailability(library)
+        .then((data) => {
+          setBooks(data);
+          setError(null);
+        })
+        .catch(err => setError(err.message))
+        .finally(() => setLoading(false));
+    }
   }
 
   function updateLibrary() {
@@ -144,13 +152,13 @@ function App() {
 <ul>
   {books.map((book, i) => (
     <li key={i}>
-      <strong>{book.title}</strong> by {book.author} (BRN: {book.brn})
+      <strong>{book.title}</strong> by {book.author} (Shelf: {book.category} - {book.code})
     </li>
   ))}
 </ul>
 
 
-        <button onClick={checkAvailability}>Check Availability</button>
+        <button onClick={checkAvailableBooks}>Check Availability</button>
         <button onClick={updateLibrary}>Update Library Branches</button>
       </div>
     </>

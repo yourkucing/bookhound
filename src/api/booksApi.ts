@@ -7,6 +7,48 @@ export interface Book {
   brn?: string;
 }
 
+export async function checkAvailability(library: string): Promise<{ title: string, author: string, code: string, category: string}[]> {
+
+  const booksForLoan: { title: string; author: string; code: string; category: string; }[] = [];
+
+  try {
+    console.log(library);
+    const { data, error } = await supabase
+      .from('books')
+      .select('title, author, availability')
+      .not('availability', 'is', null);
+      //.contains('availability', { library: library, avail: true });
+    
+      if (error) {
+        console.error("Supabase error:", error);
+        return booksForLoan;
+      }
+
+      console.log(data);
+
+      if (data) {
+        for (const book of data) {
+          if (!Array.isArray(book.availability)) continue;
+          
+          const match = book.availability.find((entry: any) => entry.library === library && entry.avail === true);
+          if (match) {
+            booksForLoan.push({
+              title: book.title,
+              author: book.author,
+              code: match.code,
+              category: match.category
+            });
+          }
+        }
+      }
+  }
+  catch (err) {
+    console.error(err);
+  }
+
+  return booksForLoan;
+}
+
 export async function fetchAvailableBooks(brn: string): Promise<{ library: string; avail: boolean; code: string; category: string; }[]> {
 
   const availableBooks: { library: string; avail: boolean; code: string; category: string; }[] = [];

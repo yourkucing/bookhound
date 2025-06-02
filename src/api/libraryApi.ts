@@ -6,7 +6,6 @@ export interface Branch {
   closed: boolean;
 }
 
-// Function to fetch books from API
 export async function fetchBranches(): Promise<Branch[]> {
   const response = await fetch(`/api/v1/Library/GetBranches?LibraryTypes=RL,PL&ListType=onsite`, {
     method: 'GET',
