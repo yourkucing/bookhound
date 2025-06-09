@@ -119,8 +119,11 @@ function App() {
   return (
     <>
       <div>
-        <h1>Book Hound</h1>
-        <h2>Library Book Availability:</h2>
+        <div className="header">
+          <h1>BookHound</h1>
+          <h2>Sniff out your next read like a pro bookdragon</h2>
+        </div>
+
         <div>
           <input
             type="file"

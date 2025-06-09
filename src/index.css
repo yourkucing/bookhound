@@ -28,11 +28,11 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  background-color: #F9D5D3;
+  font-family: "VT323", monospace;
+  font-weight: 400;
+  font-style: normal;
+  color: #6B4F4F
 }
 
 button {
